@@ -1,0 +1,479 @@
+[manifest]
+version = "1.0.0"
+dump_lua = true
+priority = 1
+
+
+[[patches]]
+[patches.pattern]
+target = "functions/state_events.lua"
+pattern = "G.FUNCS.evaluate_play = function(e)"
+position = "before"
+payload = '''
+-- BUNSJOKERS start
+G.FUNCS.BUNSJOKERS = {}
+
+-- This is a simple clamp function in case I need one in the future
+G.FUNCS.BUNSJOKERS.clamp = function(number, minimum_value, maximum_value)
+	return math.max(minimum_value, math.min(maximum_value, number))
+end
+
+-- This is just a wrapper for the pseudorandom function for comparisons, returns true or false
+G.FUNCS.BUNSJOKERS.rng_check = function(seed, target)
+	result = pseudorandom(seed) < target
+	return result
+end
+-- BUNSJOKERS end'''
+match_indent = false
+overwrite = false
+
+
+
+[[patches]]
+[patches.pattern]
+target = "functions/misc_functions.lua"
+pattern = "table.insert(results[\"Two Pair\"], fh_hand)"
+position = "before"
+payload = '''
+-- BUNSJOKERS start
+local bunhouse = next(find_joker("Bun's House"))
+if bunhouse == 1 and #hand == 5 then
+	table.insert(results["Full House"], hand)
+	if not results.top then results.top = results["Full House"] end
+end
+-- BUNSJOKERS end'''
+match_indent = true
+overwrite = false
+
+
+
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = "if self.ability.name == 'Raised Fist' then"
+position = "before"
+payload = '''
+-- BUNSJOKERS start
+-- NOTE: context.cardarea == G.hand
+if self.ability.name == 'The Brigade' and context.other_card:is_face() then
+	if context.other_card.debuff then
+		return {
+			message = localize('k_debuffed'),
+			colour = G.C.RED,
+			card = self,
+		}
+	else
+		return {
+			h_mult = self.ability.extra.bonus_mult
+		}
+	end
+end
+-- BUNSJOKERS end'''
+match_indent = true
+overwrite = false
+
+
+
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = "self.added_to_deck = true"
+position = "after"
+payload = '''
+-- BUNSJOKERS start
+if self.ability.name == "Monkey's Paw" then
+	for k, v in pairs(G.GAME.probabilities) do 
+		G.GAME.probabilities[k] = v*5
+	end
+end
+-- BUNSJOKERS end'''
+match_indent = true
+overwrite = false
+
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = "self.added_to_deck = false"
+position = "after"
+payload = '''
+-- BUNSJOKERS start
+if self.ability.name == "Monkey's Paw" then
+	for k, v in pairs(G.GAME.probabilities) do 
+		G.GAME.probabilities[k] = v/5
+	end
+end
+-- BUNSJOKERS end'''
+match_indent = true
+overwrite = false
+
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = "if self.ability.name == 'Hit the Road' and self.ability.x_mult > 1 then"
+position = "before"
+payload = '''
+-- BUNSJOKERS start
+-- NOTE: context.end_of_round
+if self.ability.name == "Monkey's Paw" and context.end_of_round then
+	if self.ability.extra.rounds - 1 > 0 then
+		self.ability.extra.rounds = self.ability.extra.rounds - 1
+		return {
+			message = self.ability.extra.rounds..'',
+			colour = G.C.FILTER
+			}
+	else
+		G.E_MANAGER:add_event(Event({trigger = 'after', delay = 0.3, blockable = false,
+			func = function()
+					G.jokers:remove_card(self)
+					self:remove()
+					self = nil
+				return true; end}))
+	end
+end
+if self.ability.name == "Bundead Joker" and context.game_over and 
+G.GAME.chips/G.GAME.blind.chips >= self.ability.extra.percentage/100 then
+		-- G.GAME.saviourtempfixtext = "Saved by Bundead Joker"
+		-- G.GAME.saviour = "ph_bundeadjoker"
+		G.E_MANAGER:add_event(Event({
+			card = self,
+			func = function()
+				G.hand_text_area.blind_chips:juice_up()
+				G.hand_text_area.game_chips:juice_up()
+				play_sound('tarot1')
+				self:start_dissolve()
+				return true
+			end
+		})) 
+		return {
+			message = localize('k_saved_ex'),
+			saved = true,
+			colour = G.C.RED
+		}
+elseif self.ability.name == "Bundead Joker" and not context.game_over then
+	self.ability.extra.percentage = pseudorandom("bundead_percentage", 1, 99)
+end	
+if self.ability.name == 'Hat Rabbit' then
+	local suit_tables = {
+		Spades = {"Hearts", "Clubs", "Diamonds"},
+		Hearts = {"Spades", "Clubs", "Diamonds"},
+		Clubs = {"Spades", "Hearts", "Diamonds"},
+		Diamonds = {"Spades", "Hearts", "Clubs"}
+	}
+	self.ability.extra.bonus_suit = pseudorandom_element(suit_tables[self.ability.extra.bonus_suit], pseudoseed("hatrabbit_suit"))
+end
+if self.ability.name == 'Curtain Call' and G.GAME.blind.boss and not context.blueprint then
+	self.ability.extra.bonus_chips.amount = math.ceil(self.ability.extra.bonus_chips.amount * self.ability.extra.bonus_chips.gain)
+	return {
+		message = localize('k_upgrade_ex'),
+		card = self,
+		colour = G.C.CHIPS
+	}
+end
+-- BUNSJOKERS end'''
+match_indent = true
+overwrite = false
+
+
+
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = "if self.ability.name == 'Fortune Teller' and not context.blueprint and (context.consumeable.ability.set == \"Tarot\") then"
+position = "before"
+payload = '''
+-- BUNSJOKERS start
+-- NOTE: context.using_consumeable
+if self.ability.name == 'Placeholder' and not context.blueprint and (context.consumeable.ability.set == "Spectral") then
+	self.ability.extra.spectrals = self.ability.extra.spectrals + 1
+	self.ability.extra.multiplier = self.ability.extra.spectrals*self.ability.extra.mod or 1
+	G.E_MANAGER:add_event(Event({
+		func = function() card_eval_status_text(self, 'extra', nil, nil, nil, {message = localize{type='variable',key='a_xmult',vars={self.ability.extra.multiplier}}}); return true
+	end}))
+end
+-- BUNSJOKERS end'''
+match_indent = true
+overwrite = false
+
+
+
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = "elseif context.remove_playing_cards then"
+position = "after"
+payload = '''
+	-- BUNSJOKERS start
+	-- NOTE: context.remove_playing_cards
+	if self.ability.name == 'Crystalline Rabbit' and #G.hand.cards > 0 
+	and G.FUNCS.BUNSJOKERS.rng_check("crystalline_rabbit", G.GAME.probabilities.normal/self.ability.extra.odds) 
+	and not context.blueprint then
+		local glass_cards = 0
+		for key, removed_card in ipairs(context.removed) do
+			if removed_card.shattered then
+				glass_cards = glass_cards + 1
+			end
+		end
+		if glass_cards > 0 then
+			for key, card in pairs(G.hand.cards) do
+				if card.ability.effect ~= 'Glass Card' then
+					G.E_MANAGER:add_event(Event({
+						delay = 0.5,
+						func = function()
+								card:juice_up(0.3, 0.5)
+								card:set_ability(G.P_CENTERS.m_glass, nil, true)
+								card_eval_status_text(card, "extra", nil, nil, nil, {message = localize("k_upgrade_ex")})
+							return true
+						end
+					}))
+				end
+			end
+		end
+	end
+	if self.ability.name == '24 Karrot' and not context.blueprint then
+		local gold_cards = 0
+		for _, card in ipairs(context.removed) do
+			if card.ability.name == 'Gold Card' then			
+				gold_cards = gold_cards + 1
+			end
+		end
+		if gold_cards > 0 then
+			ease_dollars(self.ability.extra.cash*gold_cards)
+			card_eval_status_text(self, "extra", nil, nil, nil, {message = '$'..tostring(self.ability.extra.cash*gold_cards), colour = G.C.MONEY})
+		end
+	end
+	-- BUNSJOKERS end'''
+match_indent = true
+overwrite = false
+
+[[patches]]
+[patches.pattern]
+target = "functions/common_events.lua"
+pattern = "elseif _c.name == 'Glass Joker' then info_queue[#info_queue+1] = G.P_CENTERS.m_glass"
+position = "after"
+payload = '''
+-- BUNSJOKERS start
+elseif _c.name == 'Crystalline Rabbit' then info_queue[#info_queue+1] = G.P_CENTERS.m_glass
+elseif _c.name == '24 Karrot' then info_queue[#info_queue+1] = G.P_CENTERS.m_gold
+-- The below line displays the copied joker's description next to Sketchbook, variables for those jokers are shown as errors, may revisit it later
+-- elseif _c.name == 'Sketchbook' and _c.config.extra.joker.name ~= 'None' then info_queue[#info_queue+1] = G.P_CENTERS[_c.config.extra.joker.slug]
+
+-- BUNSJOKERS end'''
+match_indent = true
+overwrite = false
+
+
+
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = "if self.ability.name == 'Ceremonial Dagger' and self.ability.mult > 0 then"
+position = "before"
+payload = '''
+-- BUNSJOKERS start
+-- NOTE: context.cardarea == G.jokers (else)
+if self.ability.name == 'Placeholder' and G.GAME.consumeable_usage_total and G.GAME.consumeable_usage_total.spectral > 0 then
+	self.ability.extra.multiplier = self.ability.extra.spectrals*self.ability.extra.mod or 1
+	return {
+		message = localize{type='variable',key='a_xmult',vars={self.ability.extra.multiplier}},
+		Xmult_mod = self.ability.extra.multiplier
+	}
+end
+if self.ability.name == 'Pecking Order' and #G.hand.cards > 0 then
+	local ranks_in_hand = {}
+	local found_duplicate_rank = false
+	for _, card in pairs(G.hand.cards) do
+		if ranks_in_hand[card:get_id()] then
+			found_duplicate_rank = true
+			break
+		end
+		ranks_in_hand[card:get_id()] = true
+	end
+	if not found_duplicate_rank then
+		return {
+				message = localize{type='variable',key='a_xmult',vars={self.ability.extra.multiplier}},
+				colour = G.C.RED,
+				Xmult_mod = self.ability.extra.multiplier
+			}
+	end
+end
+if self.ability.name == 'Rabbit Hole' and self.ability.extra.bonus_chips.amount > 0 then
+	return {
+		message = localize{type='variable',key='a_chips',vars={self.ability.extra.bonus_chips.amount}},
+		chip_mod = self.ability.extra.bonus_chips.amount, 
+		colour = G.C.CHIPS
+	}
+end
+if self.ability.name == 'Cottontail Joker' then
+	return {
+		message = localize{type='variable',key='a_mult',vars={2*G.GAME.hands[context.scoring_name].level}},
+		mult_mod = 2*G.GAME.hands[context.scoring_name].level
+	}
+end
+if self.ability.name == 'Hat Rabbit' then
+	local bonus_count = 0
+	for key, value in ipairs(G.playing_cards) do
+		if value:is_suit(self.ability.extra.bonus_suit) then
+			bonus_count = bonus_count + 1
+		end
+	end
+	local bonus_amount = self.ability.extra.bonus_mult * bonus_count
+	return {
+		message = localize{type='variable',key='a_mult',vars={bonus_amount}},
+		mult_mod = bonus_amount
+	}
+end
+if self.ability.name == 'Curtain Call' then
+	return {
+		message = localize{type='variable',key='a_chips',vars={self.ability.extra.bonus_chips.amount}},
+		chip_mod = self.ability.extra.bonus_chips.amount, 
+		colour = G.C.CHIPS
+	}
+end
+-- BUNSJOKERS end'''
+match_indent = true
+overwrite = false
+
+
+
+
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = "elseif context.setting_blind and not self.getting_sliced then"
+position = "after"
+payload = '''
+	-- BUNSJOKERS start
+	-- NOTE: context.setting_blind
+	if self.ability.name == 'Rabbit Hole' and not context.blueprint then
+		self.ability.extra.bonus_chips.amount = self.ability.extra.bonus_chips.amount + self.ability.extra.bonus_chips.gain
+		card_eval_status_text(self, "extra", nil, nil, nil, {message = localize('k_upgrade_ex')})
+	end
+	if self.ability.name == "Sketchbook" and not context.blueprint then
+		local selected_joker_index = math.random(1, #self.ability.extra.sold_joker_slugs)
+		while self.ability.extra.sold_joker_slugs[index] == self.ability.extra.joker.slug do
+			selected_joker_index = math.random(1, #self.ability.extra.sold_joker_slugs)
+		end
+		for index, value in ipairs(self.ability.extra.sold_joker_slugs) do
+			print(value)
+			if index == selected_joker_index then
+				self.ability.extra.joker.name = G.P_CENTERS[self.ability.extra.sold_joker_slugs[index]].name
+				self.ability.extra.joker.slug = value
+				self.ability.extra.joker.card = Card(0,0,0,0,self,G.P_CENTERS[value])
+				break
+			end
+		end
+	end
+	-- BUNSJOKERS end'''
+match_indent = true
+overwrite = false
+
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = "elseif context.skip_blind then"
+position = "after"
+payload = '''
+	-- BUNSJOKERS start
+	-- NOTE: context.skip_blind
+	if self.ability.name == 'Rabbit Hole' and self.ability.extra.bonus_chips.amount > 0 and not context.blueprint then
+		self.ability.extra.bonus_chips.amount = 0
+		card_eval_status_text(self, "extra", nil, nil, nil, {message = localize('k_reset')})
+	end
+	-- BUNSJOKERS end'''
+match_indent = true
+overwrite = false
+
+
+
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = "if self.ability.set == \"Joker\" and not self.debuff then"
+position = "after"
+payload = '''
+	-- BUNSJOKERS start
+	-- NOTE: Card:calculate_joker(), self.ability.set == "Joker" and not self.debuff then
+	if self.ability.name == 'Sketchbook' and not context.blueprint and self.ability.extra.joker.slug ~= "" then
+		if not context.setting_blind and not context.selling_card then
+			local sketched_joker = self.ability.extra.joker.card
+			if sketched_joker and sketched_joker ~= self then
+				context.blueprint = (context.blueprint and (context.blueprint + 1)) or 1
+				context.blueprint_card = context.blueprint_card or self
+				
+				-- Fixes a crash that occurs if the game is restarted mid-round
+				if sketched_joker.calculate_joker == nil then
+					sketched_joker = Card(0,0,0,0,self,G.P_CENTERS[self.ability.extra.joker.slug])
+					self.ability.extra.joker.card = sketched_joker
+				end
+				
+				local sketched_joker_ret = sketched_joker:calculate_joker(context)
+				if sketched_joker_ret then 
+					sketched_joker_ret.card = context.blueprint_card or self
+					sketched_joker_ret.colour = G.C.BLUE
+					return sketched_joker_ret
+				end
+			end
+		end
+	end
+	-- BUNSJOKERS end'''
+match_indent = true
+overwrite = false
+
+
+
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = "elseif context.selling_card then"
+position = "after"
+payload = '''
+	-- BUNSJOKERS start
+	-- NOTE: context.selling_card
+	if self.ability.name == 'Sketchbook' and context.card.ability.set == 'Joker' and not context.blueprint then
+		for key, value in pairs(G.P_CENTERS) do
+			if G.P_CENTERS[key].name == context.card.ability.name then
+				table.insert(self.ability.extra.sold_joker_slugs, key)
+			end
+		end
+	end
+	-- BUNSJOKERS end'''
+match_indent = true
+overwrite = false
+
+
+
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = "elseif context.discard then"
+position = "after"
+payload = '''
+	-- BUNSJOKERS start
+	-- NOTE: context.discard
+	if self.ability.name == 'Technical Difficulties' and not context.blueprint then
+		if G.FUNCS.BUNSJOKERS.rng_check("technical_difficulties", G.GAME.probabilities.normal/self.ability.extra.odds) then
+			G.E_MANAGER:add_event(Event({trigger = 'after',delay = 0.1,func = function()
+				local card = context.other_card
+				if self.ability.extra.flip and card.facing == 'front' then card:flip() end
+				card:juice_up(0.3, 0.5)
+				local suit_table = {"D","C","H","S"}
+				local value_table = {"2", "3", "4", "5", "6", "7", "8", "9", "T", "J", "Q", "K", "A"}
+				table.remove(suit_table, math.ceil(card.base.suit_nominal*80))
+				table.remove(value_table, math.ceil(card.base.id-1))
+				suit_prefix = pseudorandom_element(suit_table, pseudoseed("technicaldifficulties_suit"))
+				value_suffix = pseudorandom_element(value_table, pseudoseed("technicaldifficulties_value"))
+				card:set_base(G.P_CARDS[suit_prefix.."_"..value_suffix], true)
+				return true end }))
+			card_eval_status_text(context.other_card, "extra", nil, nil, nil, {message = localize('k_swapped_ex'), card = context.other_card, colour = G.C.DARK_EDITION})
+			return
+		end
+	end
+	-- BUNSJOKERS end'''
+match_indent = true
+overwrite = false
+
+
+
+
+
+
