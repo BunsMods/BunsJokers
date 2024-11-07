@@ -5,6 +5,7 @@
  Only tested on version 0.9.8\
  Compatibility with other versions is not guaranteed
  
+ To download the mod, head on over to the [releases page](https://github.com/BunsMods/BunsJokers/releases/latest)\
  To install, copy the folder inside the zip archive to `%appdata%\Balatro\Mods`
 ## Credits
  Project management & programming: stealthypony\
