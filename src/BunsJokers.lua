@@ -2,7 +2,7 @@
 --- MOD_NAME: Bun's Jokers
 --- MOD_ID: BunsJokers
 --- MOD_AUTHOR: [stealthypony, LoupFakafon]
---- MOD_DESCRIPTION: Adds some Strawbunneh themed jokers into the game! Version 5.0.1r, Build ID: 352E302E31722D72656C
+--- MOD_DESCRIPTION: Adds some Strawbunneh themed jokers into the game! Version 5.0.3r, Build ID: 352E302E33722D72656C
 --- BADGE_COLOUR: DC8AD1
 --- PRIORITY: -1
 
@@ -481,7 +481,7 @@ function SMODS.INIT.BunsJokers()
 						name = "Technical Difficulties",
 						text = {
 							"{C:green}#1# in #2#{} chance to randomise",
-							"the suit and value of a card",
+							"the suit and rank of a card",
 							"when the card is {C:attention}discarded",
 							}
 						},

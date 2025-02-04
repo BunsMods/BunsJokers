@@ -32,14 +32,14 @@ overwrite = false
 [[patches]]
 [patches.pattern]
 target = "functions/misc_functions.lua"
-pattern = "table.insert(results[\"Two Pair\"], fh_hand)"
-position = "before"
+pattern = "if not results.top then results.top = results[\"Two Pair\"] end"
+position = "after"
 payload = '''
 -- BUNSJOKERS start
 local bunhouse = next(find_joker("Bun's House"))
 if bunhouse == 1 and #hand == 5 then
 	table.insert(results["Full House"], hand)
-	if not results.top then results.top = results["Full House"] end
+	if not results.top or results.top == results["Two Pair"] then results.top = results["Full House"] end
 end
 -- BUNSJOKERS end'''
 match_indent = true
