@@ -7,16 +7,11 @@ priority = 1
 [[patches]]
 [patches.pattern]
 target = "functions/state_events.lua"
-pattern = "G.FUNCS.evaluate_play = function(e)"
+pattern = "G.FUNCS.tutorial_part = function(_part)"
 position = "before"
 payload = '''
 -- BUNSJOKERS start
 G.FUNCS.BUNSJOKERS = {}
-
--- This is a simple clamp function in case I need one in the future
-G.FUNCS.BUNSJOKERS.clamp = function(number, minimum_value, maximum_value)
-	return math.max(minimum_value, math.min(maximum_value, number))
-end
 
 -- This is just a wrapper for the pseudorandom function for comparisons, returns true or false
 G.FUNCS.BUNSJOKERS.rng_check = function(seed, target)

@@ -2,7 +2,7 @@
 --- MOD_NAME: Bun's Jokers
 --- MOD_ID: BunsJokers
 --- MOD_AUTHOR: [stealthypony, LoupFakafon]
---- MOD_DESCRIPTION: Adds some Strawbunneh themed jokers into the game! Version 5.0.3r, Build ID: 352E302E33722D72656C
+--- MOD_DESCRIPTION: Adds some Strawbunneh themed jokers into the game! Version 5.0.4r, Build ID: 352E302E34722D72656C
 --- BADGE_COLOUR: DC8AD1
 --- PRIORITY: -1
 
